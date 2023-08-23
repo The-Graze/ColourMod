@@ -1,5 +1,5 @@
 # ColourMod
-Customsise diffrent parts of ur gorilla
+Customsise diffrent parts of ur gorilla (white will make it normal colour)
 
 ![image](https://github.com/The-Graze/ColourMod/assets/82724623/10d71a6f-7e64-44d9-ac5b-dc737956970c)
 
