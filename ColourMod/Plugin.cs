@@ -2,6 +2,7 @@
 using BepInEx.Configuration;
 using Bepinject;
 using ColourMod.Scripts.ComputerInterfaceStuff;
+using ColourMod.Scripts.Networking;
 using GorillaNetworking;
 using GorillaTag;
 using Photon.Pun;
@@ -15,7 +16,7 @@ using Hashtable = ExitGames.Client.Photon.Hashtable;
 namespace ColourMod
 {
     [BepInDependency("org.legoandmars.gorillatag.utilla", "1.5.0")]
-    [BepInDependency("tonimacaroni.computerinterface")]
+   // [BepInDependency("tonimacaroni.computerinterface")]
     [BepInPlugin(PluginInfo.GUID, PluginInfo.Name, PluginInfo.Version)]
     public class Plugin : BaseUnityPlugin
     {
@@ -29,6 +30,8 @@ namespace ColourMod
 
         bool gothats;
         bool getting;
+        bool don;
+
         int a;
 
         public ConfigEntry<Color> HatColour;
@@ -36,6 +39,8 @@ namespace ColourMod
         public ConfigEntry<Color> BadgeColour;
         public ConfigEntry<Color> HoldableColour;
         public ConfigEntry<bool> ChestMirror;
+
+        public Dictionary<TransferrableObject, Player> OthersHoldables = new Dictionary<TransferrableObject, Player>();
 
         public string TheChanger;
 
@@ -79,23 +84,25 @@ namespace ColourMod
             }
             localChest = GorillaTagger.Instance.offlineVRRig.mainSkin.transform.parent.Find("rig/body/gorillachest").GetComponent<MeshRenderer>();
             GameObject.Find("Local Gorilla Player/rig/body").AddComponent<BadgeRendFinder>();
-
-            //commented out for now as i cant seralize Lists i dont think
-            /*  Colours.Add(HatColour.Value);
-                Colours.Add(ChestColour.Value);
-                Colours.Add(BadgeColour.Value);
-                Colours.Add(HoldableColour.Value);
-                PhotonNetwork.LocalPlayer.CustomProperties.AddOrUpdate("ColourMod",Colours);*/
             gothats = false;
+            foreach (Transform t in GameObject.Find("Player Objects/RigCache/Rig Parent").transform)
+            {
+                t.gameObject.AddComponent<DuhHeheh>();
+            }
+            UpdateProps();
         }
 
         public void UpdateProps()
         {
-            PhotonNetwork.LocalPlayer.CustomProperties.AddOrUpdate("c_Hat", ColorUtility.ToHtmlStringRGBA(HatColour.Value));
-            PhotonNetwork.LocalPlayer.CustomProperties.AddOrUpdate("c_Badge", ColorUtility.ToHtmlStringRGBA(BadgeColour.Value));
-            PhotonNetwork.LocalPlayer.CustomProperties.AddOrUpdate("c_Hold", ColorUtility.ToHtmlStringRGBA(BadgeColour.Value));
-            PhotonNetwork.LocalPlayer.CustomProperties.AddOrUpdate("c_Chest", ColorUtility.ToHtmlStringRGBA(HoldableColour.Value));
-            PhotonNetwork.LocalPlayer.CustomProperties.AddOrUpdate("c_Mode", ChestMirror.Value);
+            Hashtable hashtable = new Hashtable();
+
+            hashtable.AddOrUpdate("c_Hat", ColorUtility.ToHtmlStringRGBA(HatColour.Value));
+            hashtable.AddOrUpdate("c_Badge", ColorUtility.ToHtmlStringRGBA(BadgeColour.Value));
+            hashtable.AddOrUpdate("c_Hold", ColorUtility.ToHtmlStringRGBA(HoldableColour.Value));
+            hashtable.AddOrUpdate("c_Chest", ColorUtility.ToHtmlStringRGBA(ChestColour.Value));
+            hashtable.AddOrUpdate("c_Mode", ChestMirror.Value);
+
+            PhotonNetwork.LocalPlayer.SetCustomProperties(hashtable);
         }
 
         IEnumerator GetHats()
@@ -139,10 +146,6 @@ namespace ColourMod
         }
         void Update()
         {
-            if (PhotonNetwork.IsConnectedAndReady && !PhotonNetwork.LocalPlayer.CustomProperties.ContainsKey("c_Mode"))
-            {
-                UpdateProps();
-            }
             if(getting == false && hatcats.Count > 3 && gothats == false)
             {
                 getting = true;
@@ -162,6 +165,7 @@ namespace ColourMod
             if (localChest.material.color != ChestColour.Value && ChestMirror.Value == false)
             {
                 localChest.material.color = ChestColour.Value;
+                UpdateProps();
             }
             foreach (Renderer rend in hatRends)
             {
@@ -171,6 +175,7 @@ namespace ColourMod
                     if (rend.material.color != HatColour.Value)
                     {
                         rend.material.color = HatColour.Value;
+                        UpdateProps();
                     }
                 }
             }
@@ -181,7 +186,8 @@ namespace ColourMod
 
                     if (rend2.material.color != BadgeColour.Value)
                     {
-                        rend2.material.color = BadgeColour.Value;
+                        rend2.material.color = BadgeColour.Value; 
+                        UpdateProps();
                     }
                 }
             }
@@ -193,6 +199,7 @@ namespace ColourMod
                     if (rend3.material.color != HoldableColour.Value)
                     {
                         rend3.material.color = HoldableColour.Value;
+                        UpdateProps();
                     }
                 }
             }

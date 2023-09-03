@@ -18,16 +18,18 @@ namespace ColourMod.Patches
                 {
                     Plugin.Instance.HoldbaleRend.Add(__instance.GetComponent<Renderer>());
                 }
-                else
+                foreach (Transform t in __instance.transform)
                 {
-                    foreach (Transform t in __instance.transform)
-                    {
-                        if (t.GetComponent<Renderer>() != null)
-                        {
-                            Plugin.Instance.HoldbaleRend.Add(t.GetComponent<Renderer>());
-                        }
-                    }
+                   if (t.GetComponent<Renderer>() != null)
+                   {
+                       Plugin.Instance.HoldbaleRend.Add(t.GetComponent<Renderer>());
+                   }
                 }
+                
+            }
+            if (__instance.ownerRig != GorillaTagger.Instance.offlineVRRig && !Plugin.Instance.OthersHoldables.ContainsKey(__instance))
+            {
+               Plugin.Instance.OthersHoldables.Add(__instance, __instance.ownerRig.creator);
             }
         }
     }

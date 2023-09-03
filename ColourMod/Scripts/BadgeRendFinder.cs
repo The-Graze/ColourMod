@@ -10,7 +10,6 @@ namespace ColourMod
         Plugin p = Plugin.Instance;
         void Start()
         {
-            Invoke(nameof(aDestory), 10);
             foreach(Transform t in transform) 
             {
                 if (t.GetComponent<Renderer>() != null && t.GetComponent<Renderer>() != p.localChest)
@@ -23,11 +22,6 @@ namespace ColourMod
                     Destroy(this);
                 }
             }
-        }
-
-        void aDestory()
-        {
-            Destroy(this);
         }
     }
 }

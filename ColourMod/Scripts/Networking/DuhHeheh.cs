@@ -3,9 +3,11 @@ using Photon.Realtime;
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 using UnityEngine;
 using UnityEngine.Animations.Rigging;
+using static Photon.Pun.UtilityScripts.TabViewManager;
 
 namespace ColourMod.Scripts.Networking
 {
@@ -19,15 +21,20 @@ namespace ColourMod.Scripts.Networking
         bool FirsteverSetup;
         bool gothats;
         bool getting;
+        bool gotcats;
+        bool gotrends;
 
         int a;
+        int b;
 
         public Renderer rChest;
 
         List<GameObject> Hats = new List<GameObject>();
+        List<GameObject> Badges = new List<GameObject>();
         List<Renderer> hatRends = new List<Renderer>();
         List<Transform> hatcats = new List<Transform>();
-        List<Renderer> BadgeRend = new List<Renderer>();
+        List<Transform> BadgeCats = new List<Transform>();
+        public List<Renderer> BadgeRend = new List<Renderer>();
         List<Renderer> HoldbaleRend = new List<Renderer>();
 
         Color Hat()
@@ -57,6 +64,7 @@ namespace ColourMod.Scripts.Networking
         void OnEnable()
         {
             rig = gameObject.GetComponent<VRRig>();
+            player = rig.creator;
             if (!player.CustomProperties.ContainsKey("c_Mode"))
             {
                 this.enabled= false;
@@ -71,7 +79,10 @@ namespace ColourMod.Scripts.Networking
         {
             foreach (Transform tr in hatcats[a])
             {
-                Hats.Add(tr.gameObject);
+                if (tr.name != "gorillaface")
+                {
+                    Hats.Add(tr.gameObject);
+                }
             }
             if (a == hatcats.Count)
             {
@@ -80,26 +91,44 @@ namespace ColourMod.Scripts.Networking
             else
             {
                 getting = false;
-                yield return a++;
+                yield return a++; StartCoroutine(GetHats());
+            }
+        }
+        IEnumerator GetBadges()
+        {
+            foreach (Transform tr in BadgeCats[b])
+            {
+                if (tr.GetComponent<Renderer>() != rChest && tr.name != "gorilla" && tr.name != "head")
+                {
+                    Badges.Add(tr.gameObject);
+                }
+            }
+            if (b == BadgeCats.Count)
+            {
+                yield return gothats = true;
+            }
+            else
+            {
+                getting = false;
+                yield return b++; StartCoroutine(GetBadges());
             }
         }
         void FirstSetup()
         {
-            gothats = false;
-            foreach (Transform t in transform.Find("Cosmetics"))
-            {
-                if (t.childCount > 0)
-                {
-                    hatcats.Add(t);
-                }
-            }
-            foreach (Transform tt in transform.Find("head"))
+            foreach (Transform tt in transform.GetChild(4).GetChild(1).GetChild(21))
             {
                 if (tt.childCount > 0)
                 {
                     hatcats.Add(tt);
                 }
             }
+            foreach (Transform t in transform.GetChild(4).GetChild(1))
+            {
+                BadgeCats.Add(t);
+            }
+            gotcats = true;
+            FirsteverSetup = true;
+            HasModStart();
         }
         void HasModStart()
         {
@@ -108,21 +137,95 @@ namespace ColourMod.Scripts.Networking
             {
                 FirstSetup();
             }
-            else if(FirsteverSetup) 
+            else if(FirsteverSetup == true) 
             {
                 cando = true;
+                StartCoroutine(GetHats());
+                StartCoroutine(GetBadges());
             }
-            rChest = rig.mainSkin.transform.parent.Find("rig/body/gorillachest").GetComponent<MeshRenderer>();
+            rChest = transform.GetChild(4).GetChild(1).GetChild(20) .GetComponent<MeshRenderer>();
+        }
+
+        void GetHoldRend(TransferrableObject tob)
+        {
+            if (tob.GetComponent<Renderer>() != null)
+            {
+                if (!HoldbaleRend.Contains(tob.GetComponent<Renderer>()))
+                {
+                    HoldbaleRend.Add(tob.GetComponent<Renderer>());
+                }
+            }
+            foreach (Transform t in tob.transform)
+            {
+                if (t.GetComponent<Renderer>() != null)
+                {
+                    if (!HoldbaleRend.Contains(t.GetComponent<Renderer>()))
+                    {
+                        HoldbaleRend.Add(t.GetComponent<Renderer>());
+                    }
+                }
+            }
+        }
+        void GetHatRend(Transform StartT)
+        {
+            if (StartT.GetComponent<Renderer>() != null)
+            {
+                if (!hatRends.Contains(StartT.GetComponent<Renderer>()))
+                {
+                    hatRends.Add(StartT.GetComponent<Renderer>());
+                }
+            }
+            foreach (Transform t in StartT.transform)
+            {
+                if (t.GetComponent<Renderer>() != null)
+                {
+                    if (!hatRends.Contains(t.GetComponent<Renderer>()))
+                    {
+                        hatRends.Add(t.GetComponent<Renderer>());
+                    }
+                }
+            }
+        }
+        void GetBadgeRend(Transform StartT)
+        {
+            if (StartT.GetComponent<Renderer>() != null)
+            {
+                if (!BadgeRend.Contains(StartT.GetComponent<Renderer>()))
+                {
+                    BadgeRend.Add(StartT.GetComponent<Renderer>());
+                }
+            }
+            foreach (Transform t in StartT.transform)
+            {
+                if (t.GetComponent<Renderer>() != null)
+                {
+                    if (!BadgeRend.Contains(t.GetComponent<Renderer>()))
+                    {
+                        BadgeRend.Add(t.GetComponent<Renderer>());
+                    }
+                }
+            }
         }
         void Update()
         {
-            if (cando)
+            if (cando && gotrends == false)
             {
                 SetColours();
-                if (gothats == false && getting == false)
+                if (gotrends == false)
                 {
-                    StartCoroutine(GetHats());
-                    getting = true;
+                    foreach (TransferrableObject trb in Plugin.Instance.OthersHoldables.Keys)
+                    {
+                        GetHoldRend(trb);
+                    }
+                    foreach (GameObject hat in Hats)
+                    {
+                        GetHatRend(hat.transform);
+                    }
+                    foreach (GameObject badge in Badges)
+                    {
+                        GetBadgeRend(badge.transform);
+                    }
+                    gotrends = true;
                 }
             }
         }
@@ -138,6 +241,7 @@ namespace ColourMod.Scripts.Networking
                         rend.material.color = Hat();
                     }
                 }
+
             }
             foreach (Renderer rend2 in BadgeRend)
             {
