@@ -1,17 +1,21 @@
 ﻿using BepInEx;
 using BepInEx.Configuration;
+using Bepinject;
+using ColourMod.Scripts.ComputerInterfaceStuff;
 using GorillaNetworking;
+using GorillaTag;
 using Photon.Pun;
+using Photon.Realtime;
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.Linq;
 using UnityEngine;
-using Utilla;
+using Hashtable = ExitGames.Client.Photon.Hashtable;
 
 namespace ColourMod
 {
     [BepInDependency("org.legoandmars.gorillatag.utilla", "1.5.0")]
+    [BepInDependency("tonimacaroni.computerinterface")]
     [BepInPlugin(PluginInfo.GUID, PluginInfo.Name, PluginInfo.Version)]
     public class Plugin : BaseUnityPlugin
     {
@@ -27,43 +31,71 @@ namespace ColourMod
         bool getting;
         int a;
 
-        ConfigEntry<Color> HatColour;
-        ConfigEntry<Color> ChestColour;
-        ConfigEntry<Color> BadgeColour;
-        ConfigEntry<Color> HoldableColour;
+        public ConfigEntry<Color> HatColour;
+        public ConfigEntry<Color> ChestColour;
+        public ConfigEntry<Color> BadgeColour;
+        public ConfigEntry<Color> HoldableColour;
+        public ConfigEntry<bool> ChestMirror;
+
+        public string TheChanger;
 
         public Renderer localChest;
-        Material ChestMat;
-
-        List<Color> Colours = new List<Color>();
+        public string ChestMode()
+        {
+            if (ChestMirror.Value == true)
+            {
+                return "Mirror";
+            }
+            else return "Colour";
+        }
 
         void Start()
         {
             Instance = this;
             Utilla.Events.GameInitialized += OnGameInitialized;HarmonyPatches.ApplyHarmonyPatches();
             HatColour = Config.Bind("Hats", "Hat Colour", Color.clear, "The colour you wish to have your hat");
+            ChestMirror = Config.Bind("Chest", "Chest Mirror", true, "If true the chest will match your players material, if false it will use the colour you pick");
             ChestColour = Config.Bind("Chest", "Chest Colour", Color.black, "The colour you want your chest");
-            BadgeColour = Config.Bind("Badge", "Badge/Hand Colour", Color.clear, "The colour you want your badges/Glove Items to be");
-            HoldableColour = Config.Bind("Holdable", "Holdbale Colour", Color.clear, "The colour you want your Holdables");
+            BadgeColour = Config.Bind("Badge", "Badge/Hand Colour", Color.black, "The colour you want your badges/Glove Items to be");
+            HoldableColour = Config.Bind("Holdable", "Holdbale Colour", Color.black, "The colour you want your Holdables");
+            Zenjector.Install<MainInstaller>().OnProject();
         }
 
         void OnGameInitialized(object sender, EventArgs e)
         {
             foreach (Transform t in GameObject.Find("Main Camera/Cosmetics").transform)
             {
-                hatcats.Add(t);
+                if (t.childCount > 0)
+                {
+                    hatcats.Add(t);
+                }
+            }
+            foreach (Transform tt in GameObject.Find("Local Gorilla Player/rig/body/head").transform)
+            {
+                if (tt.childCount > 0)
+                {
+                    hatcats.Add(tt);
+                }
             }
             localChest = GorillaTagger.Instance.offlineVRRig.mainSkin.transform.parent.Find("rig/body/gorillachest").GetComponent<MeshRenderer>();
-            ChestMat = localChest.material;
             GameObject.Find("Local Gorilla Player/rig/body").AddComponent<BadgeRendFinder>();
 
             //commented out for now as i cant seralize Lists i dont think
-        /*  Colours.Add(HatColour.Value);
-            Colours.Add(ChestColour.Value);
-            Colours.Add(BadgeColour.Value);
-            Colours.Add(HoldableColour.Value);
-            PhotonNetwork.LocalPlayer.CustomProperties.AddOrUpdate("ColourMod",Colours);*/
+            /*  Colours.Add(HatColour.Value);
+                Colours.Add(ChestColour.Value);
+                Colours.Add(BadgeColour.Value);
+                Colours.Add(HoldableColour.Value);
+                PhotonNetwork.LocalPlayer.CustomProperties.AddOrUpdate("ColourMod",Colours);*/
+            gothats = false;
+        }
 
+        public void UpdateProps()
+        {
+            PhotonNetwork.LocalPlayer.CustomProperties.AddOrUpdate("c_Hat", ColorUtility.ToHtmlStringRGBA(HatColour.Value));
+            PhotonNetwork.LocalPlayer.CustomProperties.AddOrUpdate("c_Badge", ColorUtility.ToHtmlStringRGBA(BadgeColour.Value));
+            PhotonNetwork.LocalPlayer.CustomProperties.AddOrUpdate("c_Hold", ColorUtility.ToHtmlStringRGBA(BadgeColour.Value));
+            PhotonNetwork.LocalPlayer.CustomProperties.AddOrUpdate("c_Chest", ColorUtility.ToHtmlStringRGBA(HoldableColour.Value));
+            PhotonNetwork.LocalPlayer.CustomProperties.AddOrUpdate("c_Mode", ChestMirror.Value);
         }
 
         IEnumerator GetHats()
@@ -107,6 +139,10 @@ namespace ColourMod
         }
         void Update()
         {
+            if (PhotonNetwork.IsConnectedAndReady && !PhotonNetwork.LocalPlayer.CustomProperties.ContainsKey("c_Mode"))
+            {
+                UpdateProps();
+            }
             if(getting == false && hatcats.Count > 3 && gothats == false)
             {
                 getting = true;
@@ -118,34 +154,46 @@ namespace ColourMod
                 gothats = true;
             }
 
-
-            if (ChestMat.color != ChestColour.Value)
+            if (ChestMirror.Value == true && localChest.material.name != GorillaTagger.Instance.offlineVRRig.mainSkin.material.name)
             {
-                ChestMat.color = ChestColour.Value;
-               // PhotonNetwork.LocalPlayer.CustomProperties.AddOrUpdate("ColourMod", Colours);
+                localChest.material = new Material(GorillaTagger.Instance.offlineVRRig.mainSkin.material);
+            }
+
+            if (localChest.material.color != ChestColour.Value && ChestMirror.Value == false)
+            {
+                localChest.material.color = ChestColour.Value;
             }
             foreach (Renderer rend in hatRends)
             {
-                if (rend.material.color != HatColour.Value)
+                if (rend.material.HasProperty("_Color"))
                 {
-                    rend.material.color = HatColour.Value;
-                   // PhotonNetwork.LocalPlayer.CustomProperties.AddOrUpdate("ColourMod", Colours);
+
+                    if (rend.material.color != HatColour.Value)
+                    {
+                        rend.material.color = HatColour.Value;
+                    }
                 }
             }
             foreach (Renderer rend2 in BadgeRend)
             {
-                if (rend2.material.color != BadgeColour.Value)
+                if (rend2.material.HasProperty("_Color"))
                 {
-                    rend2.material.color = BadgeColour.Value;
-                   // PhotonNetwork.LocalPlayer.CustomProperties.AddOrUpdate("ColourMod", Colours);
+
+                    if (rend2.material.color != BadgeColour.Value)
+                    {
+                        rend2.material.color = BadgeColour.Value;
+                    }
                 }
             }
             foreach (Renderer rend3 in HoldbaleRend)
             {
-                if (rend3.material.color != HoldableColour.Value)
+                if (rend3.material.HasProperty("_Color"))
                 {
-                    rend3.material.color = HoldableColour.Value;
-                   // PhotonNetwork.LocalPlayer.CustomProperties.AddOrUpdate("ColourMod", Colours);
+
+                    if (rend3.material.color != HoldableColour.Value)
+                    {
+                        rend3.material.color = HoldableColour.Value;
+                    }
                 }
             }
         }
